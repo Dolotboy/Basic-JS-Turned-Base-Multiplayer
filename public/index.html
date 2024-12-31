@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système de Tours Multijoueur</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e2e;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        #playerName {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+        #currentPlayer {
+            font-size: 2em;
+        }
+        #playerCount {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 1.2em;
+            color: #f1c40f;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div id="playerCount">Joueurs connectés : 0</div>
+    <div id="playerName">En attente de connexion...</div>
+    <h1 id="currentPlayer">En attente de joueurs...</h1>
+    <button id="nextTurnButton" style="display: none;">Passer au joueur suivant</button>
+
+    <script>
+        const socket = io();
+
+        let myPlayer = null; // Informations sur le joueur connecté
+        let players = [];
+        let currentTurnIndex = 0;
+
+        // Recevoir l'état initial du jeu
+        socket.on('gameState', (data) => {
+            players = data.players;
+            currentTurnIndex = data.currentTurnIndex;
+
+            // Identifier le joueur connecté
+            myPlayer = players.find((player) => player.id === socket.id);
+
+            updateDisplay();
+        });
+
+        // Mettre à jour le joueur en train de jouer
+        socket.on('currentTurn', (data) => {
+            currentTurnIndex = data.currentTurnIndex;
+            updateDisplay();
+        });
+
+        // Mettre à jour le nombre de joueurs connectés
+        socket.on('playersUpdate', (playerCount) => {
+            const playerCountElement = document.getElementById('playerCount');
+            playerCountElement.textContent = `Joueurs connectés : ${playerCount}`;
+        });
+
+        // Mettre à jour l'affichage
+        function updateDisplay() {
+            const playerNameElement = document.getElementById('playerName');
+            const currentPlayerElement = document.getElementById('currentPlayer');
+            const nextTurnButton = document.getElementById('nextTurnButton');
+
+            // Afficher le nom du joueur connecté
+            if (myPlayer) {
+                playerNameElement.textContent = `Vous êtes : ${myPlayer.name}`;
+            } else {
+                playerNameElement.textContent = 'En attente de connexion...';
+            }
+
+            // Afficher le nom du joueur dont c'est le tour
+            if (players.length === 0) {
+                currentPlayerElement.textContent = 'En attente de joueurs...';
+                nextTurnButton.style.display = 'none';
+            } else {
+                const currentPlayer = players[currentTurnIndex];
+                currentPlayerElement.textContent = `Tour de : ${currentPlayer.name}`;
+
+                // Afficher le bouton seulement pour le joueur actif
+                nextTurnButton.style.display = currentPlayer.id === socket.id ? 'block' : 'none';
+            }
+        }
+
+        // Passer au joueur suivant
+        document.getElementById('nextTurnButton').addEventListener('click', () => {
+            socket.emit('nextTurn');
+        });
+    </script>
+</body>
+</html>
